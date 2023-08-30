@@ -1,6 +1,6 @@
 module github.com/Osagie-Godstand/crud-product-endpoints
 
-go 1.27
+go 1.21.0
 
 require (
 	github.com/go-chi/chi v1.5.4 // indirect
