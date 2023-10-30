@@ -10,6 +10,7 @@ import (
 
 	"github.com/Osagie-Godstand/crud-product-endpoints/types"
 	"github.com/go-chi/chi"
+	"github.com/google/uuid"
 )
 
 type ProductStore struct {
@@ -65,11 +66,14 @@ func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
 			case <-ctx.Done():
 				return // Aborting if the parent context is canceled
 			default:
-				query := `
-					INSERT INTO products (name, description, price, sku)
-					VALUES ($1, $2, $3, $4)`
+				// Generates a new UUID for the 'id' field
+				newID := uuid.New()
 
-				_, err := tx.ExecContext(ctx, query, p.Name, p.Description, p.Price, p.SKU)
+				query := `
+                    INSERT INTO products (id, name, description, price, sku)
+                    VALUES ($1, $2, $3, $4, $5)`
+
+				_, err := tx.ExecContext(ctx, query, newID, p.Name, p.Description, p.Price, p.SKU)
 				if err != nil {
 					errorChannel <- fmt.Errorf("failed to insert product: %s (%s)", p.Name, err.Error())
 				}
@@ -99,7 +103,7 @@ func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	response := map[string]string{"message": "Products have been added"}
+	response := map[string]string{"message": "Products have been created"}
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -135,8 +139,15 @@ func (r *ProductStore) GetProductByID(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	// Parse the UUID from the URL parameter
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
+		http.Error(w, "Invalid UUID", http.StatusBadRequest)
+		return
+	}
+
 	var product types.Products
-	err := r.DB.QueryRow("SELECT * FROM products WHERE id = $1", id).Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.SKU)
+	err = r.DB.QueryRow("SELECT * FROM products WHERE id = $1", parsedID).Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.SKU)
 	if err != nil {
 		http.Error(w, "Get Product Request Failed", http.StatusNotFound)
 		return
@@ -150,19 +161,21 @@ func (r *ProductStore) GetProductByID(w http.ResponseWriter, req *http.Request) 
 func (r *ProductStore) UpdateProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
+	// Parse the UUID from the URL parameter
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
+		http.Error(w, "Invalid UUID", http.StatusBadRequest)
+		return
+	}
+
 	var product types.Products
-	err := json.NewDecoder(req.Body).Decode(&product)
+	err = json.NewDecoder(req.Body).Decode(&product)
 	if err != nil {
 		http.Error(w, "Unprocessable Entity", http.StatusUnprocessableEntity)
 		return
 	}
 
-	if id == "" {
-		http.Error(w, "Cannot Request Product Update Without ID", http.StatusBadRequest)
-		return
-	}
-
-	_, err = r.DB.Exec("UPDATE products SET name = $1, description = $2, price = $3, sku = $4 WHERE id = $5", product.Name, product.Description, product.Price, product.SKU, id)
+	_, err = r.DB.Exec("UPDATE products SET name = $1, description = $2, price = $3, sku = $4 WHERE id = $5", product.Name, product.Description, product.Price, product.SKU, parsedID)
 	if err != nil {
 		http.Error(w, "Product Not Updated", http.StatusBadRequest)
 		return
@@ -176,12 +189,14 @@ func (r *ProductStore) UpdateProductByID(w http.ResponseWriter, req *http.Reques
 func (r *ProductStore) DeleteProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
-	if id == "" {
-		http.Error(w, "Product Deletion Needs ID Input", http.StatusBadRequest)
+	// Parse the UUID from the URL parameter
+	parsedID, err := uuid.Parse(id)
+	if err != nil {
+		http.Error(w, "Invalid UUID", http.StatusBadRequest)
 		return
 	}
 
-	_, err := r.DB.Exec("DELETE FROM products WHERE id = $1", id)
+	_, err = r.DB.Exec("DELETE FROM products WHERE id = $1", parsedID)
 	if err != nil {
 		http.Error(w, "Product Not Deleted", http.StatusInternalServerError)
 		return

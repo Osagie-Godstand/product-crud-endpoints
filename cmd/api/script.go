@@ -38,12 +38,15 @@ func CreateNewProducts(db *sql.DB) {
 			continue
 		}
 
-		// Insert the product if it doesn't exist
-		insertQuery := `
-			INSERT INTO products (name, description, price, sku)
-			VALUES ($1, $2, $3, $4)`
+		// Generate a new UUID for the 'id' field
+		newID := types.NewUUID()
 
-		_, err = db.Exec(insertQuery, product.Name, product.Description, product.Price, product.SKU)
+		// Insert the product with the generated 'id'
+		insertQuery := `
+			INSERT INTO products (id, name, description, price, sku)
+			VALUES ($1, $2, $3, $4, $5)`
+
+		_, err = db.Exec(insertQuery, newID, product.Name, product.Description, product.Price, product.SKU)
 		if err != nil {
 			log.Println("Error creating product:", err)
 		} else {
