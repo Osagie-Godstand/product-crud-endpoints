@@ -10,21 +10,24 @@ import (
 func CreateNewProducts(db *sql.DB) {
 	newProducts := []types.Product{
 		{
-			Name:        "Levis Jeans",
-			Description: "Navy Blue Denim",
+			Brand:       "Levis",
+			Description: "Denim Jeans",
+			Colour:      "Navy Blue",
+			Size:        "31/32",
 			Price:       79.99,
 			SKU:         "799999",
 		},
 		{
-			Name:        "Nike Sneakers",
-			Description: "Black Running Shoes",
+			Brand:       "Nike",
+			Description: "Air Max 97",
+			Colour:      "Black",
+			Size:        "10",
 			Price:       129.99,
 			SKU:         "129999",
 		},
 	}
 
 	for _, product := range newProducts {
-		// Check if the product with the same SKU already exists
 		existsQuery := "SELECT COUNT(*) FROM products WHERE sku = $1"
 		var count int
 		err := db.QueryRow(existsQuery, product.SKU).Scan(&count)
@@ -38,15 +41,13 @@ func CreateNewProducts(db *sql.DB) {
 			continue
 		}
 
-		// Generate a new UUID for the 'id' field
 		newID := types.NewUUID()
 
-		// Insert the product with the generated 'id'
 		insertQuery := `
-			INSERT INTO products (id, name, description, price, sku)
-			VALUES ($1, $2, $3, $4, $5)`
+			INSERT INTO products (id, brand, description, colour, size, price, sku)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
-		_, err = db.Exec(insertQuery, newID, product.Name, product.Description, product.Price, product.SKU)
+		_, err = db.Exec(insertQuery, newID, product.Brand, product.Description, product.Colour, product.Size, product.Price, product.SKU)
 		if err != nil {
 			log.Println("Error creating product:", err)
 		} else {

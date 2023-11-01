@@ -26,21 +26,16 @@ func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Creating a buffered channel to limit concurrency
 	maxConcurrent := 11
 	concurrencyLimiter := make(chan struct{}, maxConcurrent)
 
-	// Creating a buffered channel to communicate errors
 	errorChannel := make(chan error, len(products))
 
-	// Using waitgroup to wait for all goroutines to finish
 	var wg sync.WaitGroup
 
-	// Using a context for graceful shutdown
 	ctx, cancel := context.WithCancel(req.Context())
 	defer cancel()
 
-	// Assuming r.DB is a connection pool instance
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -48,46 +43,40 @@ func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
 	}
 	defer tx.Rollback()
 
-	// Iterating over each product and inserting into the database
 	for _, product := range products {
-		// Input validation
-		if product.Name == "" || product.Price <= 0 {
+		if product.Brand == "" || product.Price <= 0 {
 			http.Error(w, "Create Product Request Failed: Invalid input data", http.StatusBadRequest)
 			return
 		}
 
-		concurrencyLimiter <- struct{}{} // Acquiring a concurrency limiter slot
+		concurrencyLimiter <- struct{}{}
 		wg.Add(1)
-		go func(p types.Product) {
-			defer func() { <-concurrencyLimiter }() // Releasing a concurrency limiter slot
-			defer wg.Done()                         // Marking the end of the goroutine
+		go func(product types.Product) {
+			defer func() { <-concurrencyLimiter }()
+			defer wg.Done()
 
 			select {
 			case <-ctx.Done():
-				return // Aborting if the parent context is canceled
+				return
 			default:
-				// Generates a new UUID for the 'id' field
 				newID := uuid.New()
 
 				query := `
-                    INSERT INTO products (id, name, description, price, sku)
-                    VALUES ($1, $2, $3, $4, $5)`
+                    INSERT INTO products (id, brand, description, colour, size, price, sku)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
-				_, err := tx.ExecContext(ctx, query, newID, p.Name, p.Description, p.Price, p.SKU)
+				_, err := tx.ExecContext(ctx, query, newID, product.Brand, product.Description, product.Colour, product.Size, product.Price, product.SKU)
 				if err != nil {
-					errorChannel <- fmt.Errorf("failed to insert product: %s (%s)", p.Name, err.Error())
+					errorChannel <- fmt.Errorf("failed to insert product: %s (%s)", product.Brand, err.Error())
 				}
 			}
 		}(product)
 	}
 
-	// Waiting for all goroutines to finish
 	wg.Wait()
 
-	// Closing the errorChannel to signal that all errors are received
 	close(errorChannel)
 
-	// Committing the transaction if no errors occurred
 	if len(errorChannel) == 0 {
 		if err := tx.Commit(); err != nil {
 			http.Error(w, "Transaction Commit Failed", http.StatusInternalServerError)
@@ -95,7 +84,6 @@ func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Collecting errors and respond accordingly
 	for err := range errorChannel {
 		http.Error(w, fmt.Sprintf("Failed to insert product: %s", err), http.StatusBadRequest)
 		return
@@ -119,7 +107,7 @@ func (r *ProductStore) GetProducts(w http.ResponseWriter, req *http.Request) {
 
 	for rows.Next() {
 		var product types.Products
-		if err := rows.Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.SKU); err != nil {
+		if err := rows.Scan(&product.ID, &product.Brand, &product.Description, &product.Colour, &product.Size, &product.Price, &product.SKU); err != nil {
 			http.Error(w, "Get Product Request Failed", http.StatusInternalServerError)
 			return
 		}
@@ -139,7 +127,6 @@ func (r *ProductStore) GetProductByID(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	// Parse the UUID from the URL parameter
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
 		http.Error(w, "Invalid UUID", http.StatusBadRequest)
@@ -147,7 +134,7 @@ func (r *ProductStore) GetProductByID(w http.ResponseWriter, req *http.Request) 
 	}
 
 	var product types.Products
-	err = r.DB.QueryRow("SELECT * FROM products WHERE id = $1", parsedID).Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.SKU)
+	err = r.DB.QueryRow("SELECT * FROM products WHERE id = $1", parsedID).Scan(&product.ID, &product.Brand, &product.Description, &product.Colour, &product.Size, &product.Price, &product.SKU)
 	if err != nil {
 		http.Error(w, "Get Product Request Failed", http.StatusNotFound)
 		return
@@ -161,7 +148,6 @@ func (r *ProductStore) GetProductByID(w http.ResponseWriter, req *http.Request) 
 func (r *ProductStore) UpdateProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
-	// Parse the UUID from the URL parameter
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
 		http.Error(w, "Invalid UUID", http.StatusBadRequest)
@@ -175,7 +161,7 @@ func (r *ProductStore) UpdateProductByID(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	_, err = r.DB.Exec("UPDATE products SET name = $1, description = $2, price = $3, sku = $4 WHERE id = $5", product.Name, product.Description, product.Price, product.SKU, parsedID)
+	_, err = r.DB.Exec("UPDATE products SET brand = $1, description = $2, colour = $3, size = $4, price = $5, sku = $6 WHERE id = $7", product.Brand, product.Description, product.Colour, product.Size, product.Price, product.SKU, parsedID)
 	if err != nil {
 		http.Error(w, "Product Not Updated", http.StatusBadRequest)
 		return
@@ -189,7 +175,6 @@ func (r *ProductStore) UpdateProductByID(w http.ResponseWriter, req *http.Reques
 func (r *ProductStore) DeleteProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
-	// Parse the UUID from the URL parameter
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
 		http.Error(w, "Invalid UUID", http.StatusBadRequest)

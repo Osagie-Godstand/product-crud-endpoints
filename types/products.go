@@ -3,16 +3,20 @@ package types
 import "github.com/google/uuid"
 
 type Product struct {
-	Name        string  `json:"name"`
+	Brand       string  `json:"brand"`
 	Description string  `json:"description"`
+	Colour      string  `json:"colour"`
+	Size        string  `json:"size"`
 	Price       float64 `json:"price"`
 	SKU         string  `json:"sku"`
 }
 
 type Products struct {
 	ID          uuid.UUID `json:"id"`
-	Name        *string   `json:"name"`
+	Brand       *string   `json:"brand"`
 	Description *string   `json:"description"`
+	Colour      *string   `json:"colour"`
+	Size        *string   `json:"size"`
 	Price       *float64  `json:"price"`
 	SKU         *string   `json:"sku"`
 }
