@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/Osagie-Godstand/product-crud-endpoints/types"
+	"github.com/Osagie-Godstand/product-crud-endpoints/internal/data"
 )
 
 func CreateNewProducts(db *sql.DB) {
-	newProducts := []types.Product{
+	newProducts := []data.Product{
 		{
 			Brand:       "Levis",
 			Description: "Denim Jeans",
@@ -41,7 +41,7 @@ func CreateNewProducts(db *sql.DB) {
 			continue
 		}
 
-		newID := types.NewUUID()
+		newID := data.NewUUID()
 
 		insertQuery := `
 			INSERT INTO products (id, brand, description, colour, size, price, sku)

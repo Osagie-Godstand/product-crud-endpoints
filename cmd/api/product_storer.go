@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/Osagie-Godstand/product-crud-endpoints/types"
+	"github.com/Osagie-Godstand/product-crud-endpoints/internal/data"
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 )
@@ -18,7 +18,7 @@ type ProductStore struct {
 }
 
 func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
-	products := []types.Product{}
+	products := []data.Product{}
 
 	err := json.NewDecoder(req.Body).Decode(&products)
 	if err != nil {
@@ -51,7 +51,7 @@ func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
 
 		concurrencyLimiter <- struct{}{}
 		wg.Add(1)
-		go func(product types.Product) {
+		go func(product data.Product) {
 			defer func() { <-concurrencyLimiter }()
 			defer wg.Done()
 
@@ -96,7 +96,7 @@ func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *ProductStore) GetProducts(w http.ResponseWriter, req *http.Request) {
-	productTypes := []types.Products{}
+	productTypes := []data.Products{}
 
 	rows, err := r.DB.Query("SELECT * FROM products")
 	if err != nil {
@@ -106,7 +106,7 @@ func (r *ProductStore) GetProducts(w http.ResponseWriter, req *http.Request) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var product types.Products
+		var product data.Products
 		if err := rows.Scan(&product.ID, &product.Brand, &product.Description, &product.Colour, &product.Size, &product.Price, &product.SKU); err != nil {
 			http.Error(w, "Get Product Request Failed", http.StatusInternalServerError)
 			return
@@ -133,7 +133,7 @@ func (r *ProductStore) GetProductByID(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	var product types.Products
+	var product data.Products
 	err = r.DB.QueryRow("SELECT * FROM products WHERE id = $1", parsedID).Scan(&product.ID, &product.Brand, &product.Description, &product.Colour, &product.Size, &product.Price, &product.SKU)
 	if err != nil {
 		http.Error(w, "Get Product Request Failed", http.StatusNotFound)
@@ -154,7 +154,7 @@ func (r *ProductStore) UpdateProductByID(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	var product types.Products
+	var product data.Products
 	err = json.NewDecoder(req.Body).Decode(&product)
 	if err != nil {
 		http.Error(w, "Unprocessable Entity", http.StatusUnprocessableEntity)
