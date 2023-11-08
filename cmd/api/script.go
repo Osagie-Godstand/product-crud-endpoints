@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/Osagie-Godstand/crud-product-endpoints/types"
+	"github.com/Osagie-Godstand/product-crud-endpoints/types"
 )
 
 func CreateNewProducts(db *sql.DB) {

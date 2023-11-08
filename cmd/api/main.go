@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Osagie-Godstand/crud-product-endpoints/db"
+	"github.com/Osagie-Godstand/product-crud-endpoints/db"
 	"github.com/go-chi/chi"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
