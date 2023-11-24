@@ -8,7 +8,7 @@ BEGIN
             colour VARCHAR(255) NOT NULL,
             size VARCHAR(255) NOT NULL, 
             price DOUBLE PRECISION,
-            sku VARCHAR(255) NOT NULL
+            sku VARCHAR(255) UNIQUE NOT NULL
         );
     END IF;
 END $$;
