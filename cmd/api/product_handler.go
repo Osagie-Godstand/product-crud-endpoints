@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// The database connection and handling logic are encapsulated within the ProductStore type.
+
 type ProductStore struct {
 	DB *sql.DB
 }

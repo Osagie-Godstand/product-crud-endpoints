@@ -1,5 +1,7 @@
-# crud-product-endpoints
-crud-product-endpoints made with chi router and postgres
+# product-crud-endpoints
+product-crud-endpoints made with chi router and postgres db.
+
+This link https://odmg.dev/project4 shows images of the request and response for all of the endpoints: create_products, get_products, get_productbyid, update_product, and delete_product.
 
 ## Automating Program Compilation with a Makefile
 - To build target use: make build-app
