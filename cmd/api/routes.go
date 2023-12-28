@@ -2,7 +2,7 @@ package main
 
 import "github.com/go-chi/chi"
 
-func (r *ProductStore) setupRoutes(router chi.Router) {
+func (r *ProductHandler) setupRoutes(router chi.Router) {
 	router.Route("/api", func(api chi.Router) {
 		api.Post("/create_products", r.createProduct)
 		api.Get("/get_products", r.getProducts)
