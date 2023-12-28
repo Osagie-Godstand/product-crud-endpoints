@@ -97,7 +97,7 @@ func (r *ProductStore) createProduct(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (r *ProductStore) GetProducts(w http.ResponseWriter, req *http.Request) {
+func (r *ProductStore) getProducts(w http.ResponseWriter, req *http.Request) {
 	productTypes := []data.Products{}
 
 	rows, err := r.DB.Query("SELECT * FROM products")
@@ -121,7 +121,7 @@ func (r *ProductStore) GetProducts(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"data": productTypes})
 }
 
-func (r *ProductStore) GetProductByID(w http.ResponseWriter, req *http.Request) {
+func (r *ProductStore) getProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
 	if id == "" {
@@ -147,7 +147,7 @@ func (r *ProductStore) GetProductByID(w http.ResponseWriter, req *http.Request) 
 	json.NewEncoder(w).Encode(map[string]interface{}{"data": product})
 }
 
-func (r *ProductStore) UpdateProductByID(w http.ResponseWriter, req *http.Request) {
+func (r *ProductStore) updateProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
 	parsedID, err := uuid.Parse(id)
@@ -174,7 +174,7 @@ func (r *ProductStore) UpdateProductByID(w http.ResponseWriter, req *http.Reques
 	json.NewEncoder(w).Encode(map[string]string{"message": "Product has been updated"})
 }
 
-func (r *ProductStore) DeleteProductByID(w http.ResponseWriter, req *http.Request) {
+func (r *ProductStore) deleteProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
 	parsedID, err := uuid.Parse(id)
