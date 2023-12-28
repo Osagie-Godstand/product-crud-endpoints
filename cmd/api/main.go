@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Osagie-Godstand/product-crud-endpoints/db"
+	"github.com/Osagie-Godstand/product-crud-endpoints/internal/data"
 	"github.com/go-chi/chi"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -38,8 +39,8 @@ func main() {
 
 	createNewProducts(dbConn)
 
-	r := &ProductStore{
-		DB: dbConn,
+	r := &ProductHandler{
+		DB: &data.ProductStore{DB: dbConn},
 	}
 
 	app := chi.NewRouter()

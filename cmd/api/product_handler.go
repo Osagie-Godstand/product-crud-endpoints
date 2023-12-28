@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,13 +12,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// The database connection and handling logic are encapsulated within the ProductStore type.
-
-type ProductStore struct {
-	DB *sql.DB
+type ProductHandler struct {
+	DB *data.ProductStore
 }
 
-func (r *ProductStore) createProduct(w http.ResponseWriter, req *http.Request) {
+func (p *ProductHandler) createProduct(w http.ResponseWriter, req *http.Request) {
 	products := []data.Product{}
 
 	err := json.NewDecoder(req.Body).Decode(&products)
@@ -31,19 +28,18 @@ func (r *ProductStore) createProduct(w http.ResponseWriter, req *http.Request) {
 	maxConcurrent := 11
 	concurrencyLimiter := make(chan struct{}, maxConcurrent)
 
-	errorChannel := make(chan error, len(products))
-
-	var wg sync.WaitGroup
-
 	ctx, cancel := context.WithCancel(req.Context())
 	defer cancel()
 
-	tx, err := r.DB.BeginTx(ctx, nil)
+	tx, err := p.DB.DB.BeginTx(ctx, nil)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 	defer tx.Rollback()
+
+	errorChannel := make(chan error, len(products))
+	var wg sync.WaitGroup
 
 	for _, product := range products {
 		if product.Brand == "" || product.Price <= 0 {
@@ -61,14 +57,7 @@ func (r *ProductStore) createProduct(w http.ResponseWriter, req *http.Request) {
 			case <-ctx.Done():
 				return
 			default:
-				newID := uuid.New()
-
-				query := `
-                    INSERT INTO products (id, brand, description, colour, size, price, sku)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)`
-
-				_, err := tx.ExecContext(ctx, query, newID, product.Brand, product.Description, product.Colour, product.Size, product.Price, product.SKU)
-				if err != nil {
+				if err := p.DB.InsertProduct(product); err != nil {
 					errorChannel <- fmt.Errorf("failed to insert product: %s (%s)", product.Brand, err.Error())
 				}
 			}
@@ -76,7 +65,6 @@ func (r *ProductStore) createProduct(w http.ResponseWriter, req *http.Request) {
 	}
 
 	wg.Wait()
-
 	close(errorChannel)
 
 	if len(errorChannel) == 0 {
@@ -97,23 +85,11 @@ func (r *ProductStore) createProduct(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (r *ProductStore) getProducts(w http.ResponseWriter, req *http.Request) {
-	productTypes := []data.Products{}
-
-	rows, err := r.DB.Query("SELECT * FROM products")
+func (p *ProductHandler) getProducts(w http.ResponseWriter, req *http.Request) {
+	productTypes, err := p.DB.GetProducts()
 	if err != nil {
 		http.Error(w, "Get Product Request Failed", http.StatusInternalServerError)
 		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var product data.Products
-		if err := rows.Scan(&product.ID, &product.Brand, &product.Description, &product.Colour, &product.Size, &product.Price, &product.SKU); err != nil {
-			http.Error(w, "Get Product Request Failed", http.StatusInternalServerError)
-			return
-		}
-		productTypes = append(productTypes, product)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -121,7 +97,7 @@ func (r *ProductStore) getProducts(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"data": productTypes})
 }
 
-func (r *ProductStore) getProductByID(w http.ResponseWriter, req *http.Request) {
+func (p *ProductHandler) getProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
 	if id == "" {
@@ -135,8 +111,7 @@ func (r *ProductStore) getProductByID(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	var product data.Products
-	err = r.DB.QueryRow("SELECT * FROM products WHERE id = $1", parsedID).Scan(&product.ID, &product.Brand, &product.Description, &product.Colour, &product.Size, &product.Price, &product.SKU)
+	product, err := p.DB.GetProductByID(parsedID)
 	if err != nil {
 		http.Error(w, "Get Product Request Failed", http.StatusNotFound)
 		return
@@ -147,7 +122,7 @@ func (r *ProductStore) getProductByID(w http.ResponseWriter, req *http.Request) 
 	json.NewEncoder(w).Encode(map[string]interface{}{"data": product})
 }
 
-func (r *ProductStore) updateProductByID(w http.ResponseWriter, req *http.Request) {
+func (p *ProductHandler) updateProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
 	parsedID, err := uuid.Parse(id)
@@ -163,7 +138,7 @@ func (r *ProductStore) updateProductByID(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	_, err = r.DB.Exec("UPDATE products SET brand = $1, description = $2, colour = $3, size = $4, price = $5, sku = $6 WHERE id = $7", product.Brand, product.Description, product.Colour, product.Size, product.Price, product.SKU, parsedID)
+	err = p.DB.UpdateProductByID(parsedID, product)
 	if err != nil {
 		http.Error(w, "Product Not Updated", http.StatusBadRequest)
 		return
@@ -174,7 +149,7 @@ func (r *ProductStore) updateProductByID(w http.ResponseWriter, req *http.Reques
 	json.NewEncoder(w).Encode(map[string]string{"message": "Product has been updated"})
 }
 
-func (r *ProductStore) deleteProductByID(w http.ResponseWriter, req *http.Request) {
+func (p *ProductHandler) deleteProductByID(w http.ResponseWriter, req *http.Request) {
 	id := chi.URLParam(req, "id")
 
 	parsedID, err := uuid.Parse(id)
@@ -183,7 +158,7 @@ func (r *ProductStore) deleteProductByID(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	_, err = r.DB.Exec("DELETE FROM products WHERE id = $1", parsedID)
+	err = p.DB.DeleteProductByID(parsedID)
 	if err != nil {
 		http.Error(w, "Product Not Deleted", http.StatusInternalServerError)
 		return
