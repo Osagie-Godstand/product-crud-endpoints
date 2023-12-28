@@ -36,14 +36,14 @@ func main() {
 		log.Fatal("could not migrate the database:", migrationsErr)
 	}
 
-	CreateNewProducts(dbConn)
+	createNewProducts(dbConn)
 
 	r := &ProductStore{
 		DB: dbConn,
 	}
 
 	app := chi.NewRouter()
-	r.SetupRoutes(app)
+	r.setupRoutes(app)
 	listenAddr := os.Getenv("HTTP_LISTEN_ADDRESS")
 	fmt.Printf("Server listening on %s\n", listenAddr)
 	if err := http.ListenAndServe(listenAddr, app); err != nil {

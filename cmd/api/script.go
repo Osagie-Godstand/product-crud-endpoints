@@ -7,7 +7,7 @@ import (
 	"github.com/Osagie-Godstand/product-crud-endpoints/internal/data"
 )
 
-func CreateNewProducts(db *sql.DB) {
+func createNewProducts(db *sql.DB) {
 	newProducts := []data.Product{
 		{
 			Brand:       "Levis",

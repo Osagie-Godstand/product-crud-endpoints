@@ -19,7 +19,7 @@ type ProductStore struct {
 	DB *sql.DB
 }
 
-func (r *ProductStore) CreateProduct(w http.ResponseWriter, req *http.Request) {
+func (r *ProductStore) createProduct(w http.ResponseWriter, req *http.Request) {
 	products := []data.Product{}
 
 	err := json.NewDecoder(req.Body).Decode(&products)
