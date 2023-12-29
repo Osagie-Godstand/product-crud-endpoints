@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/Osagie-Godstand/product-crud-endpoints/internal/data"
+	"github.com/Osagie-Godstand/product-crud-endpoints/internal/model"
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 )
@@ -17,7 +18,7 @@ type ProductHandler struct {
 }
 
 func (p *ProductHandler) createProduct(w http.ResponseWriter, req *http.Request) {
-	products := []data.Product{}
+	products := []model.Product{}
 
 	err := json.NewDecoder(req.Body).Decode(&products)
 	if err != nil {
@@ -49,7 +50,7 @@ func (p *ProductHandler) createProduct(w http.ResponseWriter, req *http.Request)
 
 		concurrencyLimiter <- struct{}{}
 		wg.Add(1)
-		go func(product data.Product) {
+		go func(product model.Product) {
 			defer func() { <-concurrencyLimiter }()
 			defer wg.Done()
 
@@ -131,7 +132,7 @@ func (p *ProductHandler) updateProductByID(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	var product data.Products
+	var product model.Products
 	err = json.NewDecoder(req.Body).Decode(&product)
 	if err != nil {
 		http.Error(w, "Unprocessable Entity", http.StatusUnprocessableEntity)
